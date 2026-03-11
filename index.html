@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="tr" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>CurrencyX</title>
+<meta name="description" content="Currency converter with gold, silver and crypto prices">
+<meta name="theme-color" content="#080b12">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CurrencyX">
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#080b12;--surface:#0e1420;--surface2:#141b2d;--border:#1e2a40;--accent:#00d4ff;--accent2:#7c3aed;--gold:#f59e0b;--silver:#94a3b8;--green:#10b981;--red:#ef4444;--text:#e2e8f0;--muted:#4a5568;--muted2:#718096}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(ellipse at 20% 20%,rgba(0,212,255,.04) 0%,transparent 50%),radial-gradient(ellipse at 80% 80%,rgba(124,58,237,.05) 0%,transparent 50%);pointer-events:none;z-index:0}
+.container{max-width:480px;margin:0 auto;padding:24px 16px;position:relative;z-index:1}
+
+/* HEADER */
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+.logo{font-size:22px;font-weight:800;letter-spacing:-.5px}.logo span{color:var(--accent)}
+.header-right{display:flex;align-items:center;gap:10px}
+.status-dot{display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted2)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+.dot.loading{background:var(--gold)}.dot.error{background:var(--red);animation:none}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+
+/* LANG */
+.lang-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:11px;padding:5px 10px;border-radius:8px;cursor:pointer;transition:all .2s}
+.lang-btn:hover{border-color:var(--accent);color:var(--accent)}
+.lang-dropdown{position:absolute;top:60px;right:16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:10px;z-index:100;display:none;grid-template-columns:1fr 1fr 1fr;gap:4px;width:300px;box-shadow:0 20px 40px rgba(0,0,0,.6);max-height:400px;overflow-y:auto}
+.lang-dropdown.open{display:grid}
+.lang-option{padding:8px 10px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'JetBrains Mono',monospace;transition:all .15s;display:flex;align-items:center;gap:6px}
+.lang-option:hover{background:var(--surface2)}.lang-option.active{background:rgba(0,212,255,.1);color:var(--accent)}
+
+/* TABS */
+.tabs{display:flex;gap:8px;margin-bottom:16px}
+.tab{flex:1;padding:10px;border-radius:12px;background:var(--surface);border:1px solid var(--border);color:var(--muted2);font-family:'Syne',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;text-align:center}
+.tab.active{background:rgba(0,212,255,.1);border-color:var(--accent);color:var(--accent)}
+.tab .tab-icon{font-size:16px;display:block;margin-bottom:2px}
+
+/* CONVERTER */
+.converter-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:24px;margin-bottom:16px;position:relative;overflow:hidden}
+.converter-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:.4}
+.currency-row{background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:8px;transition:border-color .2s}
+.currency-row:focus-within{border-color:var(--accent)}
+.currency-row label{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted2);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:8px}
+.row-inner{display:flex;align-items:center;gap:12px}
+.currency-select-wrapper{position:relative;flex-shrink:0}
+.currency-select{appearance:none;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Syne',sans-serif;font-size:15px;font-weight:700;padding:8px 32px 8px 12px;border-radius:10px;cursor:pointer;outline:none;transition:border-color .2s;min-width:100px}
+.currency-select:hover,.currency-select:focus{border-color:var(--accent)}
+.select-arrow{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--muted2);pointer-events:none;font-size:10px}
+.amount-input{flex:1;background:transparent;border:none;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:500;text-align:right;outline:none;width:100%}
+.amount-input::placeholder{color:var(--muted)}.amount-input:read-only{color:var(--accent);cursor:default}
+.swap-wrapper{display:flex;justify-content:center;margin:4px 0}
+.swap-btn{background:var(--surface2);border:1px solid var(--border);color:var(--accent);width:40px;height:40px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .2s}
+.swap-btn:hover{background:var(--accent);color:var(--bg);border-color:var(--accent);transform:rotate(180deg)}
+.rate-info{margin-top:16px;padding-top:16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.rate-text{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted2)}.rate-text span{color:var(--accent);font-weight:500}
+.rate-change{font-family:'JetBrains Mono',monospace;font-size:11px;padding:3px 8px;border-radius:6px;font-weight:500}
+.rate-change.up{background:rgba(16,185,129,.15);color:var(--green)}.rate-change.down{background:rgba(239,68,68,.15);color:var(--red)}
+
+/* METAL CARD */
+.metal-card{border-radius:20px;padding:24px;margin-bottom:16px;position:relative;overflow:hidden}
+.metal-card.gold{background:linear-gradient(135deg,#1a1200 0%,#0e1420 100%);border:1px solid rgba(245,158,11,.3)}
+.metal-card.silver{background:linear-gradient(135deg,#0d1117 0%,#0e1420 100%);border:1px solid rgba(148,163,184,.3)}
+.metal-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px}
+.metal-card.gold::before{background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.metal-card.silver::before{background:linear-gradient(90deg,transparent,var(--silver),transparent)}
+.metal-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.metal-icon{font-size:32px}
+.metal-title{font-size:18px;font-weight:800}.metal-subtitle{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted2)}
+
+/* ONS PRICE GRID */
+.ons-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.ons-card{background:rgba(0,0,0,.3);border-radius:12px;padding:12px 14px;border:1px solid rgba(255,255,255,.06)}
+.ons-label{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted2);letter-spacing:1px;margin-bottom:6px}
+.ons-value{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:500}
+.ons-value.gold-color{color:var(--gold)}.ons-value.silver-color{color:var(--silver)}
+.ons-change{font-family:'JetBrains Mono',monospace;font-size:10px;margin-top:3px}
+.ons-change.up{color:var(--green)}.ons-change.down{color:var(--red)}
+
+/* GRAM CONVERTER */
+.gram-section-title{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted2);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;padding-top:16px;border-top:1px solid var(--border)}
+.gram-row{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+.gram-input{flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:500;padding:12px 14px;border-radius:12px;outline:none;transition:border-color .2s}
+.gram-input.gold-focus:focus{border-color:var(--gold)}.gram-input.silver-focus:focus{border-color:var(--silver)}
+.gram-unit{background:var(--surface2);border:1px solid var(--border);color:var(--muted2);font-family:'JetBrains Mono',monospace;font-size:12px;padding:12px 14px;border-radius:12px}
+.gram-results{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.gram-result-item{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+.gram-result-currency{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted2);margin-bottom:4px}
+.gram-result-value{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:500;color:var(--text)}
+
+/* QUICK */
+.quick-amounts{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.quick-btn{background:var(--surface);border:1px solid var(--border);color:var(--muted2);font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px 12px;border-radius:8px;cursor:pointer;transition:all .15s}
+.quick-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* FAVORITES */
+.section-title{font-size:12px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted2);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.favorites-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.fav-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.fav-card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.fav-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));opacity:0;transition:opacity .2s}
+.fav-card:hover::after{opacity:1}
+.fav-pair{font-size:13px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.fav-rate{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:500;color:var(--accent)}
+.fav-change{font-family:'JetBrains Mono',monospace;font-size:10px;margin-top:2px}
+.fav-change.up{color:var(--green)}.fav-change.down{color:var(--red)}
+
+/* CHART */
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:20px;margin-bottom:16px}
+.chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.chart-title{font-size:14px;font-weight:700}
+.chart-periods{display:flex;gap:4px}
+.period-btn{background:transparent;border:1px solid var(--border);color:var(--muted2);font-family:'JetBrains Mono',monospace;font-size:10px;padding:4px 8px;border-radius:6px;cursor:pointer;transition:all .15s}
+.period-btn.active{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.chart-container{height:120px;position:relative}
+canvas{width:100%!important;height:100%!important}
+
+/* RATES LIST */
+.rates-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:20px;margin-bottom:16px}
+.search-input{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;padding:10px 14px;border-radius:10px;outline:none;margin-bottom:12px;transition:border-color .2s}
+.search-input:focus{border-color:var(--accent)}.search-input::placeholder{color:var(--muted)}
+.rates-list{max-height:300px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.rate-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:all .15s}
+.rate-item:last-child{border-bottom:none}.rate-item:hover{padding-left:6px}
+.rate-item-left{display:flex;align-items:center;gap:10px}
+.currency-flag{font-size:20px}.currency-code{font-size:14px;font-weight:700}
+.currency-name{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted2)}
+.rate-value{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;text-align:right}
+
+.update-time{text-align:center;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);padding:8px}
+.skeleton{background:linear-gradient(90deg,var(--surface2) 25%,var(--border) 50%,var(--surface2) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:6px;height:16px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;padding:10px 20px;border-radius:10px;transition:transform .3s;z-index:100;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+[dir="rtl"] .amount-input{text-align:left}[dir="rtl"] .rate-info{flex-direction:row-reverse}
+
+/* CRYPTO */
+.crypto-market-card{background:linear-gradient(135deg,#0a0f1e 0%,#0e1420 100%);border:1px solid rgba(124,58,237,.3);border-radius:20px;padding:20px;margin-bottom:14px;position:relative;overflow:hidden}
+.crypto-market-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent2),transparent)}
+.crypto-market-header{display:flex;justify-content:space-between;align-items:center}
+.crypto-market-title{font-size:15px;font-weight:700;margin-bottom:4px}
+.crypto-market-sub{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted2)}
+.crypto-dominance{font-family:'JetBrains Mono',monospace;font-size:11px;text-align:right;color:var(--muted2)}
+.crypto-sort-btn{background:var(--surface);border:1px solid var(--border);color:var(--muted2);font-family:'JetBrains Mono',monospace;font-size:11px;padding:5px 10px;border-radius:8px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.crypto-sort-btn.active{background:rgba(124,58,237,.15);border-color:var(--accent2);color:#a78bfa}
+.crypto-sort-btn:hover{border-color:var(--accent2);color:#a78bfa}
+.crypto-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:all .15s}
+.crypto-row:last-child{border-bottom:none}.crypto-row:hover{padding-left:4px}
+.crypto-rank{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);width:22px;flex-shrink:0;text-align:right}
+.crypto-logo{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;background:var(--surface2);border:1px solid var(--border)}
+.crypto-info{flex:1;min-width:0}
+.crypto-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crypto-sym{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted2)}
+.crypto-mcap{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted2);margin-top:2px}
+.crypto-right{text-align:right;flex-shrink:0}
+.crypto-price{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;color:var(--text)}
+.crypto-change{font-family:'JetBrains Mono',monospace;font-size:11px;padding:2px 6px;border-radius:5px;margin-top:3px;display:inline-block}
+.crypto-change.up{background:rgba(16,185,129,.15);color:var(--green)}.crypto-change.down{background:rgba(239,68,68,.15);color:var(--red)}
+.crypto-detail-card{background:var(--surface);border:1px solid rgba(124,58,237,.3);border-radius:20px;padding:20px;margin-top:14px;position:relative;overflow:hidden}
+.crypto-detail-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent2),transparent)}
+.crypto-detail-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.crypto-detail-name{font-size:18px;font-weight:800}
+.crypto-detail-sym{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted2)}
+.crypto-detail-price{font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:500;color:#a78bfa;margin-bottom:14px}
+.crypto-stat{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;flex:1;min-width:calc(50% - 4px)}
+.crypto-stat-label{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted2);margin-bottom:4px}
+.crypto-stat-val{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500}
+
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="logo">Currency<span>X</span></div>
+    <div class="header-right">
+      <button class="lang-btn" onclick="toggleLangMenu()" id="langBtn">🌐 TR</button>
+      <div class="status-dot">
+        <div class="dot loading" id="statusDot"></div>
+        <span id="statusText">...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- LANG DROPDOWN -->
+  <div class="lang-dropdown" id="langDropdown">
+    <div class="lang-option active" onclick="setLang('tr')">🇹🇷 Türkçe</div>
+    <div class="lang-option" onclick="setLang('en')">🇺🇸 English</div>
+    <div class="lang-option" onclick="setLang('de')">🇩🇪 Deutsch</div>
+    <div class="lang-option" onclick="setLang('fr')">🇫🇷 Français</div>
+    <div class="lang-option" onclick="setLang('ar')">🇸🇦 العربية</div>
+    <div class="lang-option" onclick="setLang('ru')">🇷🇺 Русский</div>
+    <div class="lang-option" onclick="setLang('es')">🇪🇸 Español</div>
+    <div class="lang-option" onclick="setLang('zh')">🇨🇳 中文</div>
+    <div class="lang-option" onclick="setLang('ja')">🇯🇵 日本語</div>
+    <div class="lang-option" onclick="setLang('ko')">🇰🇷 한국어</div>
+    <div class="lang-option" onclick="setLang('pt')">🇧🇷 Português</div>
+    <div class="lang-option" onclick="setLang('it')">🇮🇹 Italiano</div>
+    <div class="lang-option" onclick="setLang('nl')">🇳🇱 Nederlands</div>
+    <div class="lang-option" onclick="setLang('pl')">🇵🇱 Polski</div>
+    <div class="lang-option" onclick="setLang('sv')">🇸🇪 Svenska</div>
+    <div class="lang-option" onclick="setLang('hi')">🇮🇳 हिन्दी</div>
+    <div class="lang-option" onclick="setLang('fa')">🇮🇷 فارسی</div>
+    <div class="lang-option" onclick="setLang('id')">🇮🇩 Bahasa</div>
+    <div class="lang-option" onclick="setLang('uk')">🇺🇦 Українська</div>
+    <div class="lang-option" onclick="setLang('ro')">🇷🇴 Română</div>
+    <div class="lang-option" onclick="setLang('cs')">🇨🇿 Čeština</div>
+    <div class="lang-option" onclick="setLang('hu')">🇭🇺 Magyar</div>
+    <div class="lang-option" onclick="setLang('el')">🇬🇷 Ελληνικά</div>
+    <div class="lang-option" onclick="setLang('th')">🇹🇭 ภาษาไทย</div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="setTab('currency',this)"><span class="tab-icon">💱</span><span data-i18n="tab_currency">Döviz</span></button>
+    <button class="tab" onclick="setTab('gold',this)"><span class="tab-icon">🥇</span><span data-i18n="tab_gold">Altın</span></button>
+    <button class="tab" onclick="setTab('silver',this)"><span class="tab-icon">🥈</span><span data-i18n="tab_silver">Gümüş</span></button>
+    <button class="tab" onclick="setTab('crypto',this)"><span class="tab-icon">₿</span><span data-i18n="tab_crypto">Kripto</span></button>
+  </div>
+
+  <!-- CURRENCY PANEL -->
+  <div id="tab_currency_panel">
+    <div class="converter-card">
+      <div class="currency-row">
+        <label data-i18n="from_label">GÖNDERİLEN</label>
+        <div class="row-inner">
+          <div class="currency-select-wrapper">
+            <select class="currency-select" id="fromCurrency" onchange="convert()"></select>
+            <span class="select-arrow">▼</span>
+          </div>
+          <input type="number" class="amount-input" id="fromAmount" value="1" oninput="convert()">
+        </div>
+      </div>
+      <div class="swap-wrapper"><button class="swap-btn" onclick="swapCurrencies()">⇅</button></div>
+      <div class="currency-row">
+        <label data-i18n="to_label">ALINAN</label>
+        <div class="row-inner">
+          <div class="currency-select-wrapper">
+            <select class="currency-select" id="toCurrency" onchange="convert()"></select>
+            <span class="select-arrow">▼</span>
+          </div>
+          <input type="number" class="amount-input" id="toAmount" readonly>
+        </div>
+      </div>
+      <div class="rate-info">
+        <div class="rate-text">1 <span id="fromCode">USD</span> = <span id="rateDisplay">—</span> <span id="toCode">TRY</span></div>
+        <div class="rate-change up" id="rateChange">—</div>
+      </div>
+    </div>
+    <div class="quick-amounts">
+      <button class="quick-btn" onclick="setAmount(100)">100</button>
+      <button class="quick-btn" onclick="setAmount(500)">500</button>
+      <button class="quick-btn" onclick="setAmount(1000)">1K</button>
+      <button class="quick-btn" onclick="setAmount(5000)">5K</button>
+      <button class="quick-btn" onclick="setAmount(10000)">10K</button>
+    </div>
+    <div class="section-title"><span data-i18n="favorites">⭐ Favoriler</span></div>
+    <div class="favorites-grid" id="favGrid"></div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title" id="chartTitle">USD / TRY</div>
+        <div class="chart-periods">
+          <button class="period-btn active" onclick="setPeriod(7,this)" data-i18n="period_7">7G</button>
+          <button class="period-btn" onclick="setPeriod(30,this)" data-i18n="period_30">1A</button>
+          <button class="period-btn" onclick="setPeriod(90,this)" data-i18n="period_90">3A</button>
+        </div>
+      </div>
+      <div class="chart-container"><canvas id="rateChart"></canvas></div>
+    </div>
+    <div class="rates-card">
+      <div class="section-title">
+        <span data-i18n="all_rates">🌍 Tüm Kurlar</span>
+        <span id="rateCount" style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:11px;"></span>
+      </div>
+      <input type="text" class="search-input" id="searchInput" data-i18n-ph="search_placeholder" placeholder="Para birimi ara..." oninput="filterRates(this.value)">
+      <div class="rates-list" id="ratesList">
+        <div class="skeleton" style="margin-bottom:12px"></div>
+        <div class="skeleton" style="margin-bottom:12px;width:80%"></div>
+        <div class="skeleton" style="margin-bottom:12px;width:90%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GOLD PANEL -->
+  <div id="tab_gold_panel" style="display:none">
+    <div class="metal-card gold">
+      <div class="metal-header">
+        <div class="metal-icon">🥇</div>
+        <div>
+          <div class="metal-title" data-i18n="gold_title">Altın (XAU)</div>
+          <div class="metal-subtitle" data-i18n="gold_subtitle">Ons & gram fiyatları</div>
+        </div>
+      </div>
+      <!-- ONS FİYATLARI -->
+      <div class="ons-grid" id="goldOnsGrid"></div>
+      <!-- GRAM ÇEVİRİCİ -->
+      <div class="gram-section-title" data-i18n="gram_input_label">KAÇ GRAM?</div>
+      <div class="gram-row">
+        <input type="number" class="gram-input gold-focus" id="goldGramInput" value="1" oninput="calcGold()">
+        <div class="gram-unit">gram</div>
+      </div>
+      <div class="gram-results" id="goldResults"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title" data-i18n="gold_chart_title">Altın Grafiği</div>
+        <div class="chart-periods">
+          <button class="period-btn active" onclick="setMetalPeriod(7,this,'gold')" data-i18n="period_7">7G</button>
+          <button class="period-btn" onclick="setMetalPeriod(30,this,'gold')" data-i18n="period_30">1A</button>
+          <button class="period-btn" onclick="setMetalPeriod(90,this,'gold')" data-i18n="period_90">3A</button>
+        </div>
+      </div>
+      <div class="chart-container"><canvas id="goldChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- SILVER PANEL -->
+  <div id="tab_silver_panel" style="display:none">
+    <div class="metal-card silver">
+      <div class="metal-header">
+        <div class="metal-icon">🥈</div>
+        <div>
+          <div class="metal-title" data-i18n="silver_title">Gümüş (XAG)</div>
+          <div class="metal-subtitle" data-i18n="silver_subtitle">Ons & gram fiyatları</div>
+        </div>
+      </div>
+      <!-- ONS FİYATLARI -->
+      <div class="ons-grid" id="silverOnsGrid"></div>
+      <!-- GRAM ÇEVİRİCİ -->
+      <div class="gram-section-title" data-i18n="gram_input_label">KAÇ GRAM?</div>
+      <div class="gram-row">
+        <input type="number" class="gram-input silver-focus" id="silverGramInput" value="1" oninput="calcSilver()">
+        <div class="gram-unit">gram</div>
+      </div>
+      <div class="gram-results" id="silverResults"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title" data-i18n="silver_chart_title">Gümüş Grafiği</div>
+        <div class="chart-periods">
+          <button class="period-btn active" onclick="setMetalPeriod(7,this,'silver')" data-i18n="period_7">7G</button>
+          <button class="period-btn" onclick="setMetalPeriod(30,this,'silver')" data-i18n="period_30">1A</button>
+          <button class="period-btn" onclick="setMetalPeriod(90,this,'silver')" data-i18n="period_90">3A</button>
+        </div>
+      </div>
+      <div class="chart-container"><canvas id="silverChart"></canvas></div>
+    </div>
+  </div>
+
+
+  <!-- CRYPTO PANEL -->
+  <div id="tab_crypto_panel" style="display:none">
+    <div class="crypto-market-card">
+      <div class="crypto-market-header">
+        <div>
+          <div class="crypto-market-title">🌐 <span data-i18n="crypto_market_title">Kripto Piyasası</span></div>
+          <div class="crypto-market-sub" id="cryptoMarketCap">Yükleniyor...</div>
+        </div>
+        <div class="crypto-dominance" id="cryptoDominance"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <input type="text" class="search-input" style="margin-bottom:0;flex:1" id="cryptoSearch" placeholder="Kripto ara..." oninput="filterCrypto(this.value)">
+      <select class="currency-select" style="min-width:110px" id="cryptoCurrency" onchange="renderCryptoList()">
+        <option value="USD">💵 USD</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
+      <button class="crypto-sort-btn active" onclick="sortCrypto('rank',this)"># Sıra</button>
+      <button class="crypto-sort-btn" onclick="sortCrypto('price',this)">Fiyat</button>
+      <button class="crypto-sort-btn" onclick="sortCrypto('change',this)">%24s</button>
+      <button class="crypto-sort-btn" onclick="sortCrypto('mcap',this)">Piyasa Değeri</button>
+    </div>
+    <div class="rates-card" style="padding:16px">
+      <div class="rates-list" style="max-height:600px" id="cryptoList">
+        <div class="skeleton" style="margin-bottom:14px;height:48px;border-radius:12px"></div>
+        <div class="skeleton" style="margin-bottom:14px;height:48px;border-radius:12px;width:90%"></div>
+        <div class="skeleton" style="margin-bottom:14px;height:48px;border-radius:12px;width:95%"></div>
+      </div>
+    </div>
+    <div id="cryptoDetail" style="display:none">
+      <div class="crypto-detail-card">
+        <div class="crypto-detail-header">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="crypto-logo" id="detailLogo" style="width:44px;height:44px;font-size:22px">₿</div>
+            <div>
+              <div class="crypto-detail-name" id="detailName">Bitcoin</div>
+              <div class="crypto-detail-sym" id="detailSym">BTC</div>
+            </div>
+          </div>
+          <button onclick="closeCryptoDetail()" style="background:none;border:none;color:var(--muted2);cursor:pointer;font-size:20px">✕</button>
+        </div>
+        <div class="crypto-detail-price" id="detailPrice">$0</div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+          <div class="crypto-stat"><div class="crypto-stat-label">24s Değişim</div><div class="crypto-stat-val" id="detailChange24">—</div></div>
+          <div class="crypto-stat"><div class="crypto-stat-label">7g Değişim</div><div class="crypto-stat-val" id="detailChange7d">—</div></div>
+          <div class="crypto-stat"><div class="crypto-stat-label">Piyasa Değeri</div><div class="crypto-stat-val" id="detailMcap">—</div></div>
+          <div class="crypto-stat"><div class="crypto-stat-label">Hacim (24s)</div><div class="crypto-stat-val" id="detailVol">—</div></div>
+          <div class="crypto-stat"><div class="crypto-stat-label">24s En Yüksek</div><div class="crypto-stat-val" id="detailHigh">—</div></div>
+          <div class="crypto-stat"><div class="crypto-stat-label">24s En Düşük</div><div class="crypto-stat-val" id="detailLow">—</div></div>
+        </div>
+        <div class="chart-container" style="height:140px"><canvas id="cryptoDetailChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="update-time" id="updateTime">—</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// =========================================================
+// TRANSLATIONS — 24 LANGUAGES
+// =========================================================
+const I18N = {
+  tr:{flag:'🇹🇷',code:'TR',dir:'ltr',tab_currency:'Döviz',tab_gold:'Altın',tab_silver:'Gümüş',from_label:'GÖNDERİLEN',to_label:'ALINAN',favorites:'⭐ Favoriler',all_rates:'🌍 Tüm Kurlar',search_placeholder:'Para birimi ara...',period_7:'7G',period_30:'1A',period_90:'3A',gold_title:'Altın (XAU)',gold_subtitle:'Ons & gram fiyatları',silver_title:'Gümüş (XAG)',silver_subtitle:'Ons & gram fiyatları',gram_input_label:'KAÇ GRAM?',gold_chart_title:'Altın Grafiği',silver_chart_title:'Gümüş Grafiği',status_live:'Canlı',status_loading:'Yükleniyor...',status_demo:'Demo',updated:'Son güncelleme:',ons_label:'ONS (troy)',gram_label:'GRAM',try_label:'TRY',
+    cur:{USD:'Amerikan Doları',EUR:'Euro',TRY:'Türk Lirası',GBP:'İngiliz Sterlini',JPY:'Japon Yeni',CHF:'İsviçre Frangı',AUD:'Avustralya Doları',CAD:'Kanada Doları',CNY:'Çin Yuanı',INR:'Hindistan Rupisi',RUB:'Rus Rublesi',SAR:'Suudi Riyali',AED:'BAE Dirhemi',KWD:'Kuveyt Dinarı',NOK:'Norveç Kronu',SEK:'İsveç Kronu',DKK:'Danimarka Kronu',PLN:'Polonya Zlotisi',BRL:'Brezilya Reali',MXN:'Meksika Pesosu',ZAR:'G.Afrika Randı',SGD:'Singapur Doları',HKD:'Hong Kong Doları',KRW:'G.Kore Wonu',THB:'Tayland Bahtı',MYR:'Malezya Ringgiti',IDR:'Endonezya Rupisi',NZD:'Yeni Zelanda Doları',QAR:'Katar Riyali',OMR:'Umman Riyali',MAD:'Fas Dirhemi',UAH:'Ukrayna Grivnası',ILS:'İsrail Şekeli',PKR:'Pakistan Rupisi',BDT:'Bangladeş Takası',VND:'Vietnam Dongu',NGN:'Nijerya Nirası',EGP:'Mısır Poundu',CZK:'Çek Korunası',HUF:'Macar Forinti',RON:'Rumen Leyi',ARS:'Arjantin Pesosu',CLP:'Şili Pesosu',COP:'Kolombiya Pesosu',GEL:'Gürcistan Larisi',AZN:'Azerbaycan Manatı'}},
+  en:{flag:'🇺🇸',code:'EN',dir:'ltr',tab_currency:'Currency',tab_gold:'Gold',tab_silver:'Silver',from_label:'FROM',to_label:'TO',favorites:'⭐ Favorites',all_rates:'🌍 All Rates',search_placeholder:'Search currency...',period_7:'7D',period_30:'1M',period_90:'3M',gold_title:'Gold (XAU)',gold_subtitle:'Oz & gram prices',silver_title:'Silver (XAG)',silver_subtitle:'Oz & gram prices',gram_input_label:'HOW MANY GRAMS?',gold_chart_title:'Gold Chart',silver_chart_title:'Silver Chart',status_live:'Live',status_loading:'Loading...',status_demo:'Demo',updated:'Last update:',ons_label:'TROY OZ',gram_label:'GRAM',try_label:'LOCAL',
+    cur:{USD:'US Dollar',EUR:'Euro',TRY:'Turkish Lira',GBP:'British Pound',JPY:'Japanese Yen',CHF:'Swiss Franc',AUD:'Australian Dollar',CAD:'Canadian Dollar',CNY:'Chinese Yuan',INR:'Indian Rupee',RUB:'Russian Ruble',SAR:'Saudi Riyal',AED:'UAE Dirham',KWD:'Kuwaiti Dinar',NOK:'Norwegian Krone',SEK:'Swedish Krona',DKK:'Danish Krone',PLN:'Polish Zloty',BRL:'Brazilian Real',MXN:'Mexican Peso',ZAR:'S.African Rand',SGD:'Singapore Dollar',HKD:'Hong Kong Dollar',KRW:'S.Korean Won',THB:'Thai Baht',MYR:'Malaysian Ringgit',IDR:'Indonesian Rupiah',NZD:'New Zealand Dollar',QAR:'Qatari Riyal',OMR:'Omani Rial',MAD:'Moroccan Dirham',UAH:'Ukrainian Hryvnia',ILS:'Israeli Shekel',PKR:'Pakistani Rupee',BDT:'Bangladeshi Taka',VND:'Vietnamese Dong',NGN:'Nigerian Naira',EGP:'Egyptian Pound',CZK:'Czech Koruna',HUF:'Hungarian Forint',RON:'Romanian Leu',ARS:'Argentine Peso',CLP:'Chilean Peso',COP:'Colombian Peso',GEL:'Georgian Lari',AZN:'Azerbaijani Manat'}},
+  de:{flag:'🇩🇪',code:'DE',dir:'ltr',tab_currency:'Währung',tab_gold:'Gold',tab_silver:'Silber',from_label:'VON',to_label:'NACH',favorites:'⭐ Favoriten',all_rates:'🌍 Alle Kurse',search_placeholder:'Währung suchen...',period_7:'7T',period_30:'1M',period_90:'3M',gold_title:'Gold (XAU)',gold_subtitle:'Unzen & Gramm Preise',silver_title:'Silber (XAG)',silver_subtitle:'Unzen & Gramm Preise',gram_input_label:'WIE VIELE GRAMM?',gold_chart_title:'Gold Diagramm',silver_chart_title:'Silber Diagramm',status_live:'Live',status_loading:'Laden...',status_demo:'Demo',updated:'Letzte Aktualisierung:',ons_label:'FEINUNZE',gram_label:'GRAMM',try_label:'LOKAL',cur:{USD:'US-Dollar',EUR:'Euro',TRY:'Türkische Lira',GBP:'Britisches Pfund',JPY:'Japanischer Yen',CHF:'Schweizer Franken',AUD:'Australischer Dollar',CAD:'Kanadischer Dollar',CNY:'Chinesischer Yuan',INR:'Indische Rupie',RUB:'Russischer Rubel',SAR:'Saudi-Riyal',AED:'Emiratischer Dirham',NOK:'Norwegische Krone',SEK:'Schwedische Krone',DKK:'Dänische Krone',PLN:'Polnischer Zloty',BRL:'Brasilianischer Real',MXN:'Mexikanischer Peso',ZAR:'Südafrikanischer Rand'}},
+  fr:{flag:'🇫🇷',code:'FR',dir:'ltr',tab_currency:'Devises',tab_gold:'Or',tab_silver:'Argent',from_label:'DE',to_label:'À',favorites:'⭐ Favoris',all_rates:'🌍 Tous les Taux',search_placeholder:'Rechercher une devise...',period_7:'7J',period_30:'1M',period_90:'3M',gold_title:'Or (XAU)',gold_subtitle:'Prix once & gramme',silver_title:'Argent (XAG)',silver_subtitle:'Prix once & gramme',gram_input_label:'COMBIEN DE GRAMMES?',gold_chart_title:'Graphique Or',silver_chart_title:'Graphique Argent',status_live:'En direct',status_loading:'Chargement...',status_demo:'Démo',updated:'Dernière mise à jour:',ons_label:'ONCE TROY',gram_label:'GRAMME',try_label:'LOCAL',cur:{USD:'Dollar américain',EUR:'Euro',TRY:'Livre turque',GBP:'Livre sterling',JPY:'Yen japonais',CHF:'Franc suisse',AUD:'Dollar australien',CAD:'Dollar canadien',CNY:'Yuan chinois',INR:'Roupie indienne',RUB:'Rouble russe',SAR:'Riyal saoudien',AED:'Dirham émirien',NOK:'Couronne norvégienne',SEK:'Couronne suédoise',DKK:'Couronne danoise',PLN:'Zloty polonais',BRL:'Réal brésilien',MXN:'Peso mexicain',ZAR:'Rand sud-africain'}},
+  ar:{flag:'🇸🇦',code:'AR',dir:'rtl',tab_currency:'عملة',tab_gold:'ذهب',tab_silver:'فضة',from_label:'من',to_label:'إلى',favorites:'⭐ المفضلة',all_rates:'🌍 جميع الأسعار',search_placeholder:'ابحث عن عملة...',period_7:'7أ',period_30:'1ش',period_90:'3ش',gold_title:'الذهب (XAU)',gold_subtitle:'أسعار الأونصة والجرام',silver_title:'الفضة (XAG)',silver_subtitle:'أسعار الأونصة والجرام',gram_input_label:'كم جرام؟',gold_chart_title:'مخطط الذهب',silver_chart_title:'مخطط الفضة',status_live:'مباشر',status_loading:'جار التحميل...',status_demo:'عرض',updated:'آخر تحديث:',ons_label:'أوقية تروي',gram_label:'جرام',try_label:'محلي',cur:{USD:'دولار أمريكي',EUR:'يورو',TRY:'ليرة تركية',GBP:'جنيه إسترليني',JPY:'ين ياباني',SAR:'ريال سعودي',AED:'درهم إماراتي',KWD:'دينار كويتي',QAR:'ريال قطري',OMR:'ريال عماني',MAD:'درهم مغربي',EGP:'جنيه مصري'}},
+  ru:{flag:'🇷🇺',code:'RU',dir:'ltr',tab_currency:'Валюта',tab_gold:'Золото',tab_silver:'Серебро',from_label:'ИЗ',to_label:'В',favorites:'⭐ Избранное',all_rates:'🌍 Все курсы',search_placeholder:'Поиск валюты...',period_7:'7Д',period_30:'1М',period_90:'3М',gold_title:'Золото (XAU)',gold_subtitle:'Цены унции и грамма',silver_title:'Серебро (XAG)',silver_subtitle:'Цены унции и грамма',gram_input_label:'СКОЛЬКО ГРАММОВ?',gold_chart_title:'График золота',silver_chart_title:'График серебра',status_live:'В эфире',status_loading:'Загрузка...',status_demo:'Демо',updated:'Последнее обновление:',ons_label:'ТРОЙСКАЯ УНЦ.',gram_label:'ГРАММ',try_label:'МЕСТНАЯ',cur:{USD:'Доллар США',EUR:'Евро',TRY:'Турецкая лира',GBP:'Британский фунт',JPY:'Японская иена',RUB:'Российский рубль',CHF:'Швейцарский франк',CNY:'Китайский юань',UAH:'Украинская гривна',KZT:'Казахстанский тенге'}},
+  es:{flag:'🇪🇸',code:'ES',dir:'ltr',tab_currency:'Divisas',tab_gold:'Oro',tab_silver:'Plata',from_label:'DE',to_label:'A',favorites:'⭐ Favoritos',all_rates:'🌍 Todos los Tipos',search_placeholder:'Buscar divisa...',period_7:'7D',period_30:'1M',period_90:'3M',gold_title:'Oro (XAU)',gold_subtitle:'Precios onza y gramo',silver_title:'Plata (XAG)',silver_subtitle:'Precios onza y gramo',gram_input_label:'¿CUÁNTOS GRAMOS?',gold_chart_title:'Gráfico del Oro',silver_chart_title:'Gráfico de la Plata',status_live:'En vivo',status_loading:'Cargando...',status_demo:'Demo',updated:'Última actualización:',ons_label:'ONZA TROY',gram_label:'GRAMO',try_label:'LOCAL',cur:{USD:'Dólar estadounidense',EUR:'Euro',TRY:'Lira turca',GBP:'Libra esterlina',JPY:'Yen japonés',MXN:'Peso mexicano',ARS:'Peso argentino',BRL:'Real brasileño',CLP:'Peso chileno',COP:'Peso colombiano',CHF:'Franco suizo'}},
+  zh:{flag:'🇨🇳',code:'ZH',dir:'ltr',tab_currency:'货币',tab_gold:'黄金',tab_silver:'白银',from_label:'从',to_label:'到',favorites:'⭐ 收藏',all_rates:'🌍 所有汇率',search_placeholder:'搜索货币...',period_7:'7天',period_30:'1月',period_90:'3月',gold_title:'黄金 (XAU)',gold_subtitle:'盎司和克价格',silver_title:'白银 (XAG)',silver_subtitle:'盎司和克价格',gram_input_label:'多少克？',gold_chart_title:'黄金图表',silver_chart_title:'白银图表',status_live:'实时',status_loading:'加载中...',status_demo:'演示',updated:'最后更新:',ons_label:'金衡盎司',gram_label:'克',try_label:'本地',cur:{USD:'美元',EUR:'欧元',TRY:'土耳其里拉',GBP:'英镑',JPY:'日元',CNY:'人民币',HKD:'港元',TWD:'台币',KRW:'韩元',SGD:'新加坡元',AUD:'澳大利亚元'}},
+  ja:{flag:'🇯🇵',code:'JA',dir:'ltr',tab_currency:'通貨',tab_gold:'金',tab_silver:'銀',from_label:'送金',to_label:'受取',favorites:'⭐ お気に入り',all_rates:'🌍 全レート',search_placeholder:'通貨を検索...',period_7:'7日',period_30:'1ヶ月',period_90:'3ヶ月',gold_title:'金 (XAU)',gold_subtitle:'オンスとグラム価格',silver_title:'銀 (XAG)',silver_subtitle:'オンスとグラム価格',gram_input_label:'何グラム？',gold_chart_title:'金チャート',silver_chart_title:'銀チャート',status_live:'ライブ',status_loading:'読込中...',status_demo:'デモ',updated:'最終更新:',ons_label:'トロイオンス',gram_label:'グラム',try_label:'現地',cur:{USD:'米ドル',EUR:'ユーロ',JPY:'日本円',GBP:'英ポンド',CNY:'中国元',KRW:'韓国ウォン',HKD:'香港ドル',SGD:'シンガポールドル',AUD:'豪ドル'}},
+  ko:{flag:'🇰🇷',code:'KO',dir:'ltr',tab_currency:'통화',tab_gold:'금',tab_silver:'은',from_label:'보내는',to_label:'받는',favorites:'⭐ 즐겨찾기',all_rates:'🌍 모든 환율',search_placeholder:'통화 검색...',period_7:'7일',period_30:'1개월',period_90:'3개월',gold_title:'금 (XAU)',gold_subtitle:'온스 & 그램 가격',silver_title:'은 (XAG)',silver_subtitle:'온스 & 그램 가격',gram_input_label:'몇 그램?',gold_chart_title:'금 차트',silver_chart_title:'은 차트',status_live:'실시간',status_loading:'로딩 중...',status_demo:'데모',updated:'마지막 업데이트:',ons_label:'트로이온스',gram_label:'그램',try_label:'현지',cur:{USD:'미국 달러',EUR:'유로',JPY:'일본 엔',KRW:'한국 원',CNY:'중국 위안',HKD:'홍콩 달러',SGD:'싱가포르 달러'}},
+  pt:{flag:'🇧🇷',code:'PT',dir:'ltr',tab_currency:'Moedas',tab_gold:'Ouro',tab_silver:'Prata',from_label:'DE',to_label:'PARA',favorites:'⭐ Favoritos',all_rates:'🌍 Todas as Taxas',search_placeholder:'Pesquisar moeda...',period_7:'7D',period_30:'1M',period_90:'3M',gold_title:'Ouro (XAU)',gold_subtitle:'Preços onça e grama',silver_title:'Prata (XAG)',silver_subtitle:'Preços onça e grama',gram_input_label:'QUANTOS GRAMAS?',gold_chart_title:'Gráfico do Ouro',silver_chart_title:'Gráfico da Prata',status_live:'Ao vivo',status_loading:'Carregando...',status_demo:'Demo',updated:'Última atualização:',ons_label:'ONÇA TROY',gram_label:'GRAMA',try_label:'LOCAL',cur:{USD:'Dólar americano',EUR:'Euro',BRL:'Real brasileiro',GBP:'Libra esterlina',JPY:'Iene japonês',ARS:'Peso argentino',CLP:'Peso chileno',COP:'Peso colombiano'}},
+  it:{flag:'🇮🇹',code:'IT',dir:'ltr',tab_currency:'Valute',tab_gold:'Oro',tab_silver:'Argento',from_label:'DA',to_label:'A',favorites:'⭐ Preferiti',all_rates:'🌍 Tutti i Tassi',search_placeholder:'Cerca valuta...',period_7:'7G',period_30:'1M',period_90:'3M',gold_title:'Oro (XAU)',gold_subtitle:'Prezzi oncia e grammo',silver_title:'Argento (XAG)',silver_subtitle:'Prezzi oncia e grammo',gram_input_label:'QUANTI GRAMMI?',gold_chart_title:'Grafico Oro',silver_chart_title:'Grafico Argento',status_live:'Live',status_loading:'Caricamento...',status_demo:'Demo',updated:'Ultimo aggiornamento:',ons_label:'ONCIA TROY',gram_label:'GRAMMO',try_label:'LOCALE',cur:{USD:'Dollaro USA',EUR:'Euro',GBP:'Sterlina britannica',JPY:'Yen giapponese',CHF:'Franco svizzero'}},
+  nl:{flag:'🇳🇱',code:'NL',dir:'ltr',tab_currency:'Valuta',tab_gold:'Goud',tab_silver:'Zilver',from_label:'VAN',to_label:'NAAR',favorites:'⭐ Favorieten',all_rates:'🌍 Alle Koersen',search_placeholder:'Valuta zoeken...',period_7:'7D',period_30:'1M',period_90:'3M',gold_title:'Goud (XAU)',gold_subtitle:'Ons & gram prijzen',silver_title:'Zilver (XAG)',silver_subtitle:'Ons & gram prijzen',gram_input_label:'HOEVEEL GRAM?',gold_chart_title:'Goud Grafiek',silver_chart_title:'Zilver Grafiek',status_live:'Live',status_loading:'Laden...',status_demo:'Demo',updated:'Laatste update:',ons_label:'TROY ONS',gram_label:'GRAM',try_label:'LOKAAL',cur:{USD:'Amerikaanse dollar',EUR:'Euro',GBP:'Brits pond',JPY:'Japanse yen',CHF:'Zwitserse frank'}},
+  pl:{flag:'🇵🇱',code:'PL',dir:'ltr',tab_currency:'Waluty',tab_gold:'Złoto',tab_silver:'Srebro',from_label:'Z',to_label:'NA',favorites:'⭐ Ulubione',all_rates:'🌍 Wszystkie kursy',search_placeholder:'Szukaj waluty...',period_7:'7D',period_30:'1M',period_90:'3M',gold_title:'Złoto (XAU)',gold_subtitle:'Ceny uncji i grama',silver_title:'Srebro (XAG)',silver_subtitle:'Ceny uncji i grama',gram_input_label:'ILE GRAMÓW?',gold_chart_title:'Wykres Złota',silver_chart_title:'Wykres Srebra',status_live:'Na żywo',status_loading:'Ładowanie...',status_demo:'Demo',updated:'Ostatnia aktualizacja:',ons_label:'UNCJA TROY',gram_label:'GRAM',try_label:'LOKALNA',cur:{USD:'Dolar amerykański',EUR:'Euro',GBP:'Funt brytyjski',PLN:'Złoty polski',CHF:'Frank szwajcarski'}},
+  sv:{flag:'🇸🇪',code:'SV',dir:'ltr',tab_currency:'Valuta',tab_gold:'Guld',tab_silver:'Silver',from_label:'FRÅN',to_label:'TILL',favorites:'⭐ Favoriter',all_rates:'🌍 Alla kurser',search_placeholder:'Sök valuta...',period_7:'7D',period_30:'1M',period_90:'3M',gold_title:'Guld (XAU)',gold_subtitle:'Uns & gram priser',silver_title:'Silver (XAG)',silver_subtitle:'Uns & gram priser',gram_input_label:'HUR MÅNGA GRAM?',gold_chart_title:'Gulddiagram',silver_chart_title:'Silverdiagram',status_live:'Live',status_loading:'Laddar...',status_demo:'Demo',updated:'Senast uppdaterad:',ons_label:'TROY UNS',gram_label:'GRAM',try_label:'LOKALT',cur:{USD:'Amerikansk dollar',EUR:'Euro',GBP:'Brittiskt pund',SEK:'Svensk krona',NOK:'Norsk krone',DKK:'Dansk krone'}},
+  hi:{flag:'🇮🇳',code:'HI',dir:'ltr',tab_currency:'मुद्रा',tab_gold:'सोना',tab_silver:'चाँदी',from_label:'से',to_label:'को',favorites:'⭐ पसंदीदा',all_rates:'🌍 सभी दरें',search_placeholder:'मुद्रा खोजें...',period_7:'7दिन',period_30:'1माह',period_90:'3माह',gold_title:'सोना (XAU)',gold_subtitle:'औंस और ग्राम कीमतें',silver_title:'चाँदी (XAG)',silver_subtitle:'औंस और ग्राम कीमतें',gram_input_label:'कितने ग्राम?',gold_chart_title:'सोना चार्ट',silver_chart_title:'चाँदी चार्ट',status_live:'लाइव',status_loading:'लोड हो रहा है...',status_demo:'डेमो',updated:'अंतिम अद्यतन:',ons_label:'ट्रॉय औंस',gram_label:'ग्राम',try_label:'स्थानीय',cur:{USD:'अमेरिकी डॉलर',EUR:'यूरो',INR:'भारतीय रुपया',GBP:'ब्रिटिश पाउंड',JPY:'जापानी येन'}},
+  fa:{flag:'🇮🇷',code:'FA',dir:'rtl',tab_currency:'ارز',tab_gold:'طلا',tab_silver:'نقره',from_label:'از',to_label:'به',favorites:'⭐ موردعلاقه',all_rates:'🌍 همه نرخ‌ها',search_placeholder:'جستجوی ارز...',period_7:'۷روز',period_30:'۱ماه',period_90:'۳ماه',gold_title:'طلا (XAU)',gold_subtitle:'قیمت اونس و گرم',silver_title:'نقره (XAG)',silver_subtitle:'قیمت اونس و گرم',gram_input_label:'چند گرم؟',gold_chart_title:'نمودار طلا',silver_chart_title:'نمودار نقره',status_live:'زنده',status_loading:'در حال بارگذاری...',status_demo:'نمایشی',updated:'آخرین بروزرسانی:',ons_label:'اونس تروی',gram_label:'گرم',try_label:'محلی',cur:{USD:'دلار آمریکا',EUR:'یورو',GBP:'پوند انگلیس',JPY:'ین ژاپن',SAR:'ریال سعودی',AED:'درهم امارات'}},
+  id:{flag:'🇮🇩',code:'ID',dir:'ltr',tab_currency:'Mata Uang',tab_gold:'Emas',tab_silver:'Perak',from_label:'DARI',to_label:'KE',favorites:'⭐ Favorit',all_rates:'🌍 Semua Kurs',search_placeholder:'Cari mata uang...',period_7:'7H',period_30:'1B',period_90:'3B',gold_title:'Emas (XAU)',gold_subtitle:'Harga ons & gram',silver_title:'Perak (XAG)',silver_subtitle:'Harga ons & gram',gram_input_label:'BERAPA GRAM?',gold_chart_title:'Grafik Emas',silver_chart_title:'Grafik Perak',status_live:'Langsung',status_loading:'Memuat...',status_demo:'Demo',updated:'Pembaruan terakhir:',ons_label:'ONS TROY',gram_label:'GRAM',try_label:'LOKAL',cur:{USD:'Dolar AS',EUR:'Euro',IDR:'Rupiah Indonesia',GBP:'Poundsterling',JPY:'Yen Jepang',SGD:'Dolar Singapura',MYR:'Ringgit Malaysia'}},
+  uk:{flag:'🇺🇦',code:'UK',dir:'ltr',tab_currency:'Валюта',tab_gold:'Золото',tab_silver:'Срібло',from_label:'З',to_label:'В',favorites:'⭐ Вибране',all_rates:'🌍 Всі курси',search_placeholder:'Пошук валюти...',period_7:'7Д',period_30:'1М',period_90:'3М',gold_title:'Золото (XAU)',gold_subtitle:'Ціни унції та грама',silver_title:'Срібло (XAG)',silver_subtitle:'Ціни унції та грама',gram_input_label:'СКІЛЬКИ ГРАМІВ?',gold_chart_title:'Графік золота',silver_chart_title:'Графік срібла',status_live:'Наживо',status_loading:'Завантаження...',status_demo:'Демо',updated:'Останнє оновлення:',ons_label:'ТРОЙСЬКА УНЦ.',gram_label:'ГРАМ',try_label:'МІСЦЕВА',cur:{USD:'Долар США',EUR:'Євро',UAH:'Українська гривня',GBP:'Британський фунт',PLN:'Польський злотий'}},
+  ro:{flag:'🇷🇴',code:'RO',dir:'ltr',tab_currency:'Valute',tab_gold:'Aur',tab_silver:'Argint',from_label:'DIN',to_label:'ÎN',favorites:'⭐ Favorite',all_rates:'🌍 Toate Cursurile',search_placeholder:'Caută valută...',period_7:'7Z',period_30:'1L',period_90:'3L',gold_title:'Aur (XAU)',gold_subtitle:'Prețuri uncie și gram',silver_title:'Argint (XAG)',silver_subtitle:'Prețuri uncie și gram',gram_input_label:'CÂTE GRAME?',gold_chart_title:'Grafic Aur',silver_chart_title:'Grafic Argint',status_live:'Live',status_loading:'Se încarcă...',status_demo:'Demo',updated:'Ultima actualizare:',ons_label:'UNCIE TROY',gram_label:'GRAM',try_label:'LOCAL',cur:{USD:'Dolar american',EUR:'Euro',RON:'Leu românesc',GBP:'Liră sterlină'}},
+  cs:{flag:'🇨🇿',code:'CS',dir:'ltr',tab_currency:'Měny',tab_gold:'Zlato',tab_silver:'Stříbro',from_label:'Z',to_label:'NA',favorites:'⭐ Oblíbené',all_rates:'🌍 Všechny kurzy',search_placeholder:'Hledat měnu...',period_7:'7D',period_30:'1M',period_90:'3M',gold_title:'Zlato (XAU)',gold_subtitle:'Ceny unce a gramu',silver_title:'Stříbro (XAG)',silver_subtitle:'Ceny unce a gramu',gram_input_label:'KOLIK GRAMŮ?',gold_chart_title:'Graf Zlata',silver_chart_title:'Graf Stříbra',status_live:'Živě',status_loading:'Načítání...',status_demo:'Demo',updated:'Poslední aktualizace:',ons_label:'TROJSKÁ UNCE',gram_label:'GRAM',try_label:'MÍSTNÍ',cur:{USD:'Americký dolar',EUR:'Euro',CZK:'Česká koruna',GBP:'Britská libra'}},
+  hu:{flag:'🇭🇺',code:'HU',dir:'ltr',tab_currency:'Devizák',tab_gold:'Arany',tab_silver:'Ezüst',from_label:'EBBŐL',to_label:'EBE',favorites:'⭐ Kedvencek',all_rates:'🌍 Összes árfolyam',search_placeholder:'Deviza keresése...',period_7:'7N',period_30:'1H',period_90:'3H',gold_title:'Arany (XAU)',gold_subtitle:'Uncia és gramm árak',silver_title:'Ezüst (XAG)',silver_subtitle:'Uncia és gramm árak',gram_input_label:'HÁNY GRAMM?',gold_chart_title:'Arany Diagram',silver_chart_title:'Ezüst Diagram',status_live:'Élő',status_loading:'Betöltés...',status_demo:'Bemutató',updated:'Utolsó frissítés:',ons_label:'TROY UNCIA',gram_label:'GRAMM',try_label:'HELYI',cur:{USD:'Amerikai dollár',EUR:'Euró',HUF:'Magyar forint',GBP:'Brit font'}},
+  el:{flag:'🇬🇷',code:'EL',dir:'ltr',tab_currency:'Νόμισμα',tab_gold:'Χρυσός',tab_silver:'Ασήμι',from_label:'ΑΠΌ',to_label:'ΣΕ',favorites:'⭐ Αγαπημένα',all_rates:'🌍 Όλες οι Ισοτιμίες',search_placeholder:'Αναζήτηση νομίσματος...',period_7:'7Η',period_30:'1Μ',period_90:'3Μ',gold_title:'Χρυσός (XAU)',gold_subtitle:'Τιμές ουγγιάς και γραμμαρίου',silver_title:'Ασήμι (XAG)',silver_subtitle:'Τιμές ουγγιάς και γραμμαρίου',gram_input_label:'ΠΟΣΑ ΓΡΑΜΜΆΡΙΑ;',gold_chart_title:'Γράφημα Χρυσού',silver_chart_title:'Γράφημα Ασημιού',status_live:'Ζωντανά',status_loading:'Φόρτωση...',status_demo:'Επίδειξη',updated:'Τελευταία ενημέρωση:',ons_label:'ΟΥΓΓΙΆ ΤΡΌΥ',gram_label:'ΓΡΑΜΜΆΡΙΟ',try_label:'ΤΟΠΙΚΌ',cur:{USD:'Αμερικανικό δολάριο',EUR:'Ευρώ',GBP:'Βρετανική λίρα'}},
+  th:{flag:'🇹🇭',code:'TH',dir:'ltr',tab_currency:'สกุลเงิน',tab_gold:'ทอง',tab_silver:'เงิน',from_label:'จาก',to_label:'ไปยัง',favorites:'⭐ รายการโปรด',all_rates:'🌍 อัตราทั้งหมด',search_placeholder:'ค้นหาสกุลเงิน...',period_7:'7วัน',period_30:'1เดือน',period_90:'3เดือน',gold_title:'ทองคำ (XAU)',gold_subtitle:'ราคาออนซ์และกรัม',silver_title:'เงิน (XAG)',silver_subtitle:'ราคาออนซ์และกรัม',gram_input_label:'กี่กรัม?',gold_chart_title:'กราฟทองคำ',silver_chart_title:'กราฟเงิน',status_live:'สด',status_loading:'กำลังโหลด...',status_demo:'สาธิต',updated:'อัปเดตล่าสุด:',ons_label:'ออนซ์ทรอย',gram_label:'กรัม',try_label:'ท้องถิ่น',cur:{USD:'ดอลลาร์สหรัฐ',EUR:'ยูโร',THB:'บาทไทย',JPY:'เยนญี่ปุ่น',SGD:'ดอลลาร์สิงคโปร์'}}
+};
+
+const FLAGS={USD:'🇺🇸',EUR:'🇪🇺',TRY:'🇹🇷',GBP:'🇬🇧',JPY:'🇯🇵',CHF:'🇨🇭',AUD:'🇦🇺',CAD:'🇨🇦',CNY:'🇨🇳',INR:'🇮🇳',RUB:'🇷🇺',SAR:'🇸🇦',AED:'🇦🇪',KWD:'🇰🇼',NOK:'🇳🇴',SEK:'🇸🇪',DKK:'🇩🇰',PLN:'🇵🇱',CZK:'🇨🇿',HUF:'🇭🇺',RON:'🇷🇴',BGN:'🇧🇬',BRL:'🇧🇷',MXN:'🇲🇽',ARS:'🇦🇷',CLP:'🇨🇱',COP:'🇨🇴',ZAR:'🇿🇦',EGP:'🇪🇬',NGN:'🇳🇬',SGD:'🇸🇬',HKD:'🇭🇰',TWD:'🇹🇼',KRW:'🇰🇷',THB:'🇹🇭',MYR:'🇲🇾',IDR:'🇮🇩',PHP:'🇵🇭',NZD:'🇳🇿',ILS:'🇮🇱',QAR:'🇶🇦',OMR:'🇴🇲',BHD:'🇧🇭',MAD:'🇲🇦',TND:'🇹🇳',UAH:'🇺🇦',GEL:'🇬🇪',AZN:'🇦🇿',PKR:'🇵🇰',BDT:'🇧🇩',VND:'🇻🇳'};
+
+const FAV_PAIRS=[{from:'USD',to:'TRY'},{from:'EUR',to:'TRY'},{from:'GBP',to:'TRY'},{from:'USD',to:'EUR'}];
+const GOLD_OZ_USD=2330.50, SILVER_OZ_USD=27.85, OZ_TO_GRAM=31.1035;
+// Ons fiyatlarını TRY ve diğer dillere göre gösterilecek para birimleri
+const ONS_CURRENCIES=['USD','EUR','TRY','GBP'];
+
+let rates={}, allRates=[], currentLang='tr', currentPeriod=7, currentTab='currency';
+
+const L=()=>I18N[currentLang]||I18N.en;
+const t=k=>L()[k]||(I18N.en[k]||k);
+const getCurName=c=>(L().cur&&L().cur[c])||(I18N.en.cur&&I18N.en.cur[c])||c;
+
+// ===== LANG =====
+function setLang(lang){
+  currentLang=lang;
+  const l=L();
+  document.documentElement.setAttribute('dir',l.dir||'ltr');
+  document.documentElement.setAttribute('lang',lang);
+  document.getElementById('langBtn').textContent=`🌐 ${l.code}`;
+  document.getElementById('langDropdown').classList.remove('open');
+  document.querySelectorAll('[data-i18n]').forEach(el=>{const k=el.getAttribute('data-i18n');if(l[k]||I18N.en[k])el.textContent=t(k)});
+  document.querySelectorAll('[data-i18n-ph]').forEach(el=>{const k=el.getAttribute('data-i18n-ph');el.placeholder=t(k)});
+  document.querySelectorAll('.lang-option').forEach(el=>el.classList.toggle('active',el.getAttribute('onclick').includes(`'${lang}'`)));
+  if(allRates.length){renderRates(allRates);updateFavorites();updateMetalPrices();calcGold();calcSilver();}
+}
+
+function toggleLangMenu(){document.getElementById('langDropdown').classList.toggle('open')}
+document.addEventListener('click',e=>{if(!e.target.closest('#langBtn')&&!e.target.closest('#langDropdown'))document.getElementById('langDropdown').classList.remove('open')});
+
+// ===== TABS =====
+function setTab(tab,btn){
+  currentTab=tab;
+  ['currency','gold','silver','crypto'].forEach(t=>document.getElementById(`tab_${t}_panel`).style.display=t===tab?'block':'none');
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(tab==='gold'){updateMetalPrices();calcGold();setTimeout(()=>drawMetalChart('gold'),50);}
+  if(tab==='silver'){updateMetalPrices();calcSilver();setTimeout(()=>drawMetalChart('silver'),50);}
+  if(tab==='crypto'){initCrypto();}
+}
+
+// ===== API =====
+async function fetchRates(base='USD'){
+  setStatus('loading',t('status_loading'));
+  try{
+    const res=await fetch(`https://api.exchangerate-api.com/v4/latest/${base}`);
+    const data=await res.json();
+    rates=data.rates; rates[base]=1;
+    initUI(); setStatus('ok',t('status_live'));
+    document.getElementById('updateTime').textContent=`${t('updated')} ${new Date().toLocaleTimeString()}`;
+  }catch(e){useDemoData();setStatus('error',t('status_demo'));document.getElementById('updateTime').textContent=t('status_demo');}
+}
+
+function useDemoData(){
+  rates={USD:1,EUR:0.92,TRY:32.5,GBP:0.79,JPY:149.5,CHF:0.88,AUD:1.53,CAD:1.36,CNY:7.24,INR:83.1,RUB:91.2,SAR:3.75,AED:3.67,KWD:0.307,NOK:10.5,SEK:10.4,DKK:6.88,PLN:3.97,CZK:23.1,HUF:358,RON:4.59,BGN:1.80,BRL:4.97,MXN:17.1,ARS:870,ZAR:18.6,EGP:30.9,SGD:1.34,HKD:7.82,TWD:31.8,KRW:1325,THB:35.1,MYR:4.72,IDR:15650,PHP:56.5,NZD:1.63,ILS:3.69,QAR:3.64,OMR:0.385,BHD:0.377,MAD:9.98,UAH:38.2,GEL:2.66,AZN:1.70,PKR:278,BDT:110,VND:24800,COP:3950,CLP:900,NGN:1560,TND:3.1};
+  initUI();
+}
+
+function initUI(){
+  populateSelects(Object.keys(rates));
+  populateCryptoCurrencySelect();
+  updateFavorites(); showAllRates(); convert(); drawChart();
+  updateMetalPrices(); calcGold(); calcSilver();
+  if(currentTab==='crypto') initCrypto();
+}
+
+function setStatus(type,text){
+  document.getElementById('statusDot').className='dot '+(type==='ok'?'':type);
+  document.getElementById('statusText').textContent=text;
+}
+
+// ===== CONVERTER =====
+function populateSelects(currencies){
+  const f=document.getElementById('fromCurrency'),to=document.getElementById('toCurrency');
+  const fv=f.value||'USD',tv=to.value||'TRY';
+  f.innerHTML='';to.innerHTML='';
+  currencies.sort().forEach(c=>{
+    const flag=FLAGS[c]||'🏳️';
+    f.add(new Option(`${flag} ${c}`,c));
+    to.add(new Option(`${flag} ${c}`,c));
+  });
+  f.value=fv;to.value=tv;
+}
+
+function convert(){
+  const from=document.getElementById('fromCurrency').value;
+  const to=document.getElementById('toCurrency').value;
+  const amount=parseFloat(document.getElementById('fromAmount').value)||0;
+  if(!rates[from]||!rates[to])return;
+  const rate=rates[to]/rates[from];
+  document.getElementById('toAmount').value=amount>0?(amount*rate).toFixed(4):'';
+  document.getElementById('rateDisplay').textContent=rate.toFixed(4);
+  document.getElementById('fromCode').textContent=from;
+  document.getElementById('toCode').textContent=to;
+  document.getElementById('chartTitle').textContent=`${from} / ${to}`;
+  const chg=((Math.random()*2-1)).toFixed(2);
+  const el=document.getElementById('rateChange');
+  el.textContent=(chg>0?'+':'')+chg+'%';
+  el.className='rate-change '+(chg>0?'up':'down');
+}
+
+function swapCurrencies(){
+  const f=document.getElementById('fromCurrency'),to=document.getElementById('toCurrency');
+  [f.value,to.value]=[to.value,f.value];convert();
+}
+
+function setAmount(v){document.getElementById('fromAmount').value=v;convert();}
+
+function updateFavorites(){
+  const grid=document.getElementById('favGrid');grid.innerHTML='';
+  FAV_PAIRS.forEach(pair=>{
+    if(!rates[pair.from]||!rates[pair.to])return;
+    const rate=(rates[pair.to]/rates[pair.from]).toFixed(4);
+    const chg=((Math.random()*3-1)).toFixed(2);
+    const card=document.createElement('div');card.className='fav-card';
+    card.innerHTML=`<div class="fav-pair"><span>${FLAGS[pair.from]||'🏳️'}</span>${pair.from}/${pair.to}</div><div class="fav-rate">${rate}</div><div class="fav-change ${chg>0?'up':'down'}">${chg>0?'▲':'▼'} ${Math.abs(chg)}%</div>`;
+    card.onclick=()=>{document.getElementById('fromCurrency').value=pair.from;document.getElementById('toCurrency').value=pair.to;convert();drawChart();showToast(`${pair.from}/${pair.to}`);};
+    grid.appendChild(card);
+  });
+}
+
+function showAllRates(){
+  allRates=Object.entries(rates).map(([code,rate])=>({code,rate,flag:FLAGS[code]||'🏳️',name:getCurName(code)})).sort((a,b)=>a.code.localeCompare(b.code));
+  document.getElementById('rateCount').textContent=allRates.length+(currentLang==='ar'?' عملة':currentLang==='zh'?' 种货币':currentLang==='ja'?' 通貨':currentLang==='ko'?' 통화':' currency');
+  renderRates(allRates);
+}
+
+function renderRates(list){
+  const base=document.getElementById('fromCurrency').value||'USD';
+  const baseRate=rates[base]||1;
+  document.getElementById('ratesList').innerHTML=list.map(r=>{
+    const v=(r.rate/baseRate).toFixed(4);
+    return `<div class="rate-item" onclick="selectCurrency('${r.code}')"><div class="rate-item-left"><span class="currency-flag">${r.flag}</span><div><div class="currency-code">${r.code}</div><div class="currency-name">${getCurName(r.code)}</div></div></div><div class="rate-value" style="color:var(--accent)">${v}</div></div>`;
+  }).join('');
+}
+
+function filterRates(q){
+  renderRates(allRates.filter(r=>r.code.toLowerCase().includes(q.toLowerCase())||getCurName(r.code).toLowerCase().includes(q.toLowerCase())));
+}
+
+function selectCurrency(code){document.getElementById('toCurrency').value=code;convert();drawChart();showToast(code);}
+
+// ===== METALS =====
+function updateMetalPrices(){
+  // ALTIN ONS GRİDİ
+  const goldGrid=document.getElementById('goldOnsGrid');
+  const silverGrid=document.getElementById('silverOnsGrid');
+  const l=L();
+  
+  // Ons fiyatları — seçilen 4 para birimi
+  const onsHTML=(metalOzUSD,colorClass)=>ONS_CURRENCIES.filter(c=>rates[c]).map(c=>{
+    const onsVal=(metalOzUSD*rates[c]).toFixed(2);
+    const gramVal=((metalOzUSD/OZ_TO_GRAM)*rates[c]).toFixed(2);
+    const chg=((Math.random()*1.5-0.5)).toFixed(2);
+    return `<div class="ons-card">
+      <div class="ons-label">${FLAGS[c]||'🏳️'} ${c}</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted2);margin-bottom:4px">${l.ons_label}</div>
+      <div class="ons-value ${colorClass}">${Number(onsVal).toLocaleString()}</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted2);margin-top:8px;margin-bottom:4px">${l.gram_label}</div>
+      <div class="ons-value ${colorClass}" style="font-size:13px">${Number(gramVal).toLocaleString()}</div>
+      <div class="ons-change ${chg>0?'up':'down'}">${chg>0?'▲':'▼'} ${Math.abs(chg)}%</div>
+    </div>`;
+  }).join('');
+  
+  goldGrid.innerHTML=onsHTML(GOLD_OZ_USD,'gold-color');
+  silverGrid.innerHTML=onsHTML(SILVER_OZ_USD,'silver-color');
+}
+
+function calcMetal(metalOzUSD,gramId,resultId){
+  const grams=parseFloat(document.getElementById(gramId).value)||0;
+  const usdPerG=metalOzUSD/OZ_TO_GRAM;
+  const totalUSD=grams*usdPerG;
+  const mainCurs=['USD','EUR','TRY','GBP','SAR','AED','JPY','CNY','RUB','INR'];
+  document.getElementById(resultId).innerHTML=mainCurs.filter(c=>rates[c]).map(c=>{
+    const val=(totalUSD*rates[c]).toFixed(2);
+    return `<div class="gram-result-item"><div class="gram-result-currency">${FLAGS[c]||'🏳️'} ${c}</div><div class="gram-result-value">${Number(val).toLocaleString()}</div></div>`;
+  }).join('');
+}
+
+function calcGold(){calcMetal(GOLD_OZ_USD,'goldGramInput','goldResults');}
+function calcSilver(){calcMetal(SILVER_OZ_USD,'silverGramInput','silverResults');}
+
+// ===== CHART =====
+function drawChart(){
+  const from=document.getElementById('fromCurrency').value;
+  const to=document.getElementById('toCurrency').value;
+  drawCanvasChart('rateChart',rates[to]/rates[from]||1,'#00d4ff',currentPeriod);
+}
+
+function drawMetalChart(metal){
+  const base=metal==='gold'?GOLD_OZ_USD/OZ_TO_GRAM:SILVER_OZ_USD/OZ_TO_GRAM;
+  drawCanvasChart(metal+'Chart',base,metal==='gold'?'#f59e0b':'#94a3b8',30);
+}
+
+function drawCanvasChart(id,base,color,days){
+  const canvas=document.getElementById(id);if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  canvas.width=canvas.offsetWidth*devicePixelRatio;canvas.height=canvas.offsetHeight*devicePixelRatio;
+  ctx.scale(devicePixelRatio,devicePixelRatio);
+  const W=canvas.offsetWidth,H=canvas.offsetHeight;
+  const pts=[];
+  for(let i=days;i>=0;i--){const n=(Math.random()-.5)*base*.04,tr=(days-i)*base*.001;pts.push(base+n+tr);}
+  const mn=Math.min(...pts)*.998,mx=Math.max(...pts)*1.002;
+  ctx.clearRect(0,0,W,H);
+  const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,color+'26');g.addColorStop(1,color+'00');
+  ctx.beginPath();pts.forEach((p,i)=>{const x=(i/(pts.length-1))*W,y=H-((p-mn)/(mx-mn))*H;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+  const lx=W,ly=H-((pts[pts.length-1]-mn)/(mx-mn))*H;ctx.lineTo(lx,H);ctx.lineTo(0,H);ctx.closePath();ctx.fillStyle=g;ctx.fill();
+  ctx.beginPath();pts.forEach((p,i)=>{const x=(i/(pts.length-1))*W,y=H-((p-mn)/(mx-mn))*H;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+  ctx.strokeStyle=color;ctx.lineWidth=2;ctx.stroke();
+  ctx.beginPath();ctx.arc(lx,ly,4,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();
+}
+
+function setPeriod(days,btn){
+  currentPeriod=days;
+  document.querySelectorAll('#tab_currency_panel .period-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');drawChart();
+}
+
+function setMetalPeriod(days,btn,metal){
+  document.getElementById(`tab_${metal}_panel`).querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');drawMetalChart(metal);
+}
+
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
+
+
+// ===== CRYPTO DATA (Top 50 - Demo) =====
+const CRYPTO_DATA = [
+  {rank:1,  id:'bitcoin',    name:'Bitcoin',          sym:'BTC', logo:'₿',  price_usd:67420,  change24:2.34,  change7d:5.12,  mcap_usd:1.32e12, vol24_usd:28.4e9, high24:68200, low24:66100},
+  {rank:2,  id:'ethereum',   name:'Ethereum',         sym:'ETH', logo:'Ξ',  price_usd:3520,   change24:-1.12, change7d:3.45,  mcap_usd:423e9,   vol24_usd:14.2e9, high24:3580,  low24:3480},
+  {rank:3,  id:'tether',     name:'Tether',           sym:'USDT',logo:'₮',  price_usd:1.0,    change24:0.01,  change7d:0.02,  mcap_usd:109e9,   vol24_usd:52e9,   high24:1.001, low24:0.999},
+  {rank:4,  id:'bnb',        name:'BNB',              sym:'BNB', logo:'🔶', price_usd:587,    change24:0.87,  change7d:2.1,   mcap_usd:86e9,    vol24_usd:1.8e9,  high24:594,   low24:579},
+  {rank:5,  id:'solana',     name:'Solana',           sym:'SOL', logo:'◎',  price_usd:178,    change24:3.21,  change7d:8.4,   mcap_usd:82e9,    vol24_usd:3.4e9,  high24:182,   low24:174},
+  {rank:6,  id:'usdc',       name:'USD Coin',         sym:'USDC',logo:'🔵', price_usd:1.0,    change24:0.00,  change7d:0.01,  mcap_usd:33e9,    vol24_usd:6.1e9,  high24:1.001, low24:0.999},
+  {rank:7,  id:'xrp',        name:'XRP',              sym:'XRP', logo:'✕',  price_usd:0.62,   change24:-0.45, change7d:1.2,   mcap_usd:34e9,    vol24_usd:1.1e9,  high24:0.635, low24:0.61},
+  {rank:8,  id:'steth',      name:'Lido Staked ETH',  sym:'stETH',logo:'Ξ', price_usd:3515,   change24:-1.09, change7d:3.41,  mcap_usd:33e9,    vol24_usd:0.14e9, high24:3575,  low24:3475},
+  {rank:9,  id:'cardano',    name:'Cardano',          sym:'ADA', logo:'♠',  price_usd:0.485,  change24:1.05,  change7d:4.2,   mcap_usd:17e9,    vol24_usd:0.42e9, high24:0.493, low24:0.477},
+  {rank:10, id:'dogecoin',   name:'Dogecoin',         sym:'DOGE',logo:'🐕', price_usd:0.172,  change24:4.56,  change7d:9.8,   mcap_usd:24e9,    vol24_usd:1.2e9,  high24:0.178, low24:0.165},
+  {rank:11, id:'avalanche',  name:'Avalanche',        sym:'AVAX',logo:'🔺', price_usd:37.4,   change24:2.1,   change7d:6.3,   mcap_usd:15e9,    vol24_usd:0.62e9, high24:38.1,  low24:36.5},
+  {rank:12, id:'tron',       name:'TRON',             sym:'TRX', logo:'🔷', price_usd:0.128,  change24:0.34,  change7d:1.5,   mcap_usd:11e9,    vol24_usd:0.38e9, high24:0.131, low24:0.126},
+  {rank:13, id:'shiba-inu',  name:'Shiba Inu',        sym:'SHIB',logo:'🐕', price_usd:0.0000268,change24:5.2, change7d:12.4,  mcap_usd:15e9,    vol24_usd:0.88e9, high24:0.0000275,low24:0.0000255},
+  {rank:14, id:'chainlink',  name:'Chainlink',        sym:'LINK',logo:'🔗', price_usd:15.8,   change24:1.34,  change7d:4.7,   mcap_usd:9.2e9,   vol24_usd:0.44e9, high24:16.1,  low24:15.5},
+  {rank:15, id:'polkadot',   name:'Polkadot',         sym:'DOT', logo:'●',  price_usd:8.42,   change24:-0.78, change7d:2.3,   mcap_usd:11e9,    vol24_usd:0.31e9, high24:8.61,  low24:8.28},
+  {rank:16, id:'polygon',    name:'Polygon',          sym:'MATIC',logo:'🔷',price_usd:0.88,   change24:1.56,  change7d:5.1,   mcap_usd:8.1e9,   vol24_usd:0.51e9, high24:0.895, low24:0.865},
+  {rank:17, id:'bitcoin-cash',name:'Bitcoin Cash',    sym:'BCH', logo:'Ƀ',  price_usd:478,    change24:-0.32, change7d:1.8,   mcap_usd:9.4e9,   vol24_usd:0.28e9, high24:485,   low24:472},
+  {rank:18, id:'litecoin',   name:'Litecoin',         sym:'LTC', logo:'Ł',  price_usd:88.5,   change24:0.91,  change7d:3.2,   mcap_usd:6.6e9,   vol24_usd:0.32e9, high24:89.8,  low24:87.1},
+  {rank:19, id:'uniswap',    name:'Uniswap',          sym:'UNI', logo:'🦄', price_usd:10.2,   change24:2.45,  change7d:7.8,   mcap_usd:6.1e9,   vol24_usd:0.21e9, high24:10.4,  low24:9.95},
+  {rank:20, id:'dai',        name:'Dai',              sym:'DAI', logo:'◈',  price_usd:1.0,    change24:0.01,  change7d:0.02,  mcap_usd:5.4e9,   vol24_usd:0.18e9, high24:1.001, low24:0.999},
+  {rank:21, id:'atom',       name:'Cosmos',           sym:'ATOM',logo:'⚛',  price_usd:9.85,   change24:1.12,  change7d:3.4,   mcap_usd:3.8e9,   vol24_usd:0.19e9, high24:10.0,  low24:9.7},
+  {rank:22, id:'monero',     name:'Monero',           sym:'XMR', logo:'Ɱ',  price_usd:168,    change24:-0.56, change7d:2.1,   mcap_usd:3.1e9,   vol24_usd:0.11e9, high24:170,   low24:166},
+  {rank:23, id:'okb',        name:'OKB',              sym:'OKB', logo:'🔵', price_usd:52.4,   change24:0.78,  change7d:2.9,   mcap_usd:3.1e9,   vol24_usd:0.08e9, high24:53.1,  low24:51.8},
+  {rank:24, id:'stellar',    name:'Stellar',          sym:'XLM', logo:'✦',  price_usd:0.135,  change24:0.45,  change7d:1.8,   mcap_usd:3.9e9,   vol24_usd:0.12e9, high24:0.138, low24:0.133},
+  {rank:25, id:'injective',  name:'Injective',        sym:'INJ', logo:'💎', price_usd:34.2,   change24:3.78,  change7d:11.2,  mcap_usd:2.9e9,   vol24_usd:0.24e9, high24:35.1,  low24:33.0},
+  {rank:26, id:'filecoin',   name:'Filecoin',         sym:'FIL', logo:'🗂', price_usd:6.12,   change24:1.23,  change7d:4.5,   mcap_usd:3.0e9,   vol24_usd:0.15e9, high24:6.24,  low24:6.02},
+  {rank:27, id:'ethereum-classic',name:'Ethereum Classic',sym:'ETC',logo:'Ξ',price_usd:29.8,  change24:-0.34, change7d:1.2,   mcap_usd:4.2e9,   vol24_usd:0.16e9, high24:30.2,  low24:29.4},
+  {rank:28, id:'hedera',     name:'Hedera',           sym:'HBAR',logo:'ℏ',  price_usd:0.112,  change24:2.34,  change7d:6.7,   mcap_usd:4.2e9,   vol24_usd:0.18e9, high24:0.115, low24:0.109},
+  {rank:29, id:'near',       name:'NEAR Protocol',    sym:'NEAR',logo:'Ⓝ',  price_usd:7.85,   change24:1.89,  change7d:5.4,   mcap_usd:8.5e9,   vol24_usd:0.29e9, high24:8.0,   low24:7.7},
+  {rank:30, id:'vechain',    name:'VeChain',          sym:'VET', logo:'⚡', price_usd:0.038,  change24:0.67,  change7d:2.8,   mcap_usd:2.8e9,   vol24_usd:0.09e9, high24:0.039, low24:0.037},
+  {rank:31, id:'aptos',      name:'Aptos',            sym:'APT', logo:'🅐',  price_usd:11.4,   change24:2.56,  change7d:7.1,   mcap_usd:5.1e9,   vol24_usd:0.22e9, high24:11.7,  low24:11.1},
+  {rank:32, id:'optimism',   name:'Optimism',         sym:'OP',  logo:'🔴', price_usd:2.84,   change24:3.12,  change7d:8.9,   mcap_usd:3.5e9,   vol24_usd:0.18e9, high24:2.91,  low24:2.75},
+  {rank:33, id:'arbitrum',   name:'Arbitrum',         sym:'ARB', logo:'🔵', price_usd:1.24,   change24:1.45,  change7d:4.2,   mcap_usd:3.9e9,   vol24_usd:0.21e9, high24:1.27,  low24:1.22},
+  {rank:34, id:'cronos',     name:'Cronos',           sym:'CRO', logo:'🔵', price_usd:0.138,  change24:0.23,  change7d:1.1,   mcap_usd:3.6e9,   vol24_usd:0.05e9, high24:0.141, low24:0.136},
+  {rank:35, id:'algorand',   name:'Algorand',         sym:'ALGO',logo:'Ⓐ',  price_usd:0.218,  change24:1.12,  change7d:3.8,   mcap_usd:1.8e9,   vol24_usd:0.07e9, high24:0.222, low24:0.215},
+  {rank:36, id:'sui',        name:'Sui',              sym:'SUI', logo:'💧', price_usd:1.95,   change24:4.23,  change7d:12.8,  mcap_usd:5.1e9,   vol24_usd:0.38e9, high24:2.01,  low24:1.87},
+  {rank:37, id:'aave',       name:'Aave',             sym:'AAVE',logo:'👻', price_usd:108,    change24:2.78,  change7d:6.5,   mcap_usd:1.6e9,   vol24_usd:0.11e9, high24:110,   low24:106},
+  {rank:38, id:'quant',      name:'Quant',            sym:'QNT', logo:'Ω',  price_usd:112,    change24:0.45,  change7d:2.1,   mcap_usd:1.4e9,   vol24_usd:0.03e9, high24:114,   low24:110},
+  {rank:39, id:'multiversx', name:'MultiversX',       sym:'EGLD',logo:'⚡', price_usd:48.2,   change24:1.34,  change7d:4.8,   mcap_usd:1.3e9,   vol24_usd:0.06e9, high24:49.0,  low24:47.5},
+  {rank:40, id:'theta',      name:'Theta Network',    sym:'THETA',logo:'θ', price_usd:2.28,   change24:0.89,  change7d:3.4,   mcap_usd:2.3e9,   vol24_usd:0.05e9, high24:2.32,  low24:2.25},
+  {rank:41, id:'flow',       name:'Flow',             sym:'FLOW',logo:'🌊', price_usd:0.98,   change24:1.67,  change7d:5.2,   mcap_usd:1.0e9,   vol24_usd:0.04e9, high24:1.00,  low24:0.96},
+  {rank:42, id:'the-sandbox',name:'The Sandbox',      sym:'SAND',logo:'🏜', price_usd:0.58,   change24:3.45,  change7d:10.2,  mcap_usd:1.1e9,   vol24_usd:0.12e9, high24:0.596, low24:0.560},
+  {rank:43, id:'decentraland',name:'Decentraland',    sym:'MANA',logo:'🏙', price_usd:0.482,  change24:2.34,  change7d:7.8,   mcap_usd:0.9e9,   vol24_usd:0.09e9, high24:0.495, low24:0.472},
+  {rank:44, id:'axie-infinity',name:'Axie Infinity',  sym:'AXS', logo:'🐾', price_usd:8.45,   change24:1.12,  change7d:4.3,   mcap_usd:1.3e9,   vol24_usd:0.07e9, high24:8.61,  low24:8.30},
+  {rank:45, id:'eos',        name:'EOS',              sym:'EOS', logo:'Ε',  price_usd:0.92,   change24:0.34,  change7d:1.8,   mcap_usd:1.0e9,   vol24_usd:0.08e9, high24:0.935, low24:0.908},
+  {rank:46, id:'maker',      name:'Maker',            sym:'MKR', logo:'🏦', price_usd:2840,   change24:-0.45, change7d:2.4,   mcap_usd:2.6e9,   vol24_usd:0.07e9, high24:2870,  low24:2815},
+  {rank:47, id:'gala',       name:'Gala',             sym:'GALA',logo:'🎮', price_usd:0.042,  change24:4.56,  change7d:13.2,  mcap_usd:1.5e9,   vol24_usd:0.19e9, high24:0.043, low24:0.040},
+  {rank:48, id:'fantom',     name:'Fantom',           sym:'FTM', logo:'👻', price_usd:0.835,  change24:2.78,  change7d:8.1,   mcap_usd:2.3e9,   vol24_usd:0.14e9, high24:0.852, low24:0.817},
+  {rank:49, id:'immutable',  name:'Immutable',        sym:'IMX', logo:'🎯', price_usd:2.12,   change24:3.45,  change7d:10.8,  mcap_usd:3.2e9,   vol24_usd:0.17e9, high24:2.18,  low24:2.05},
+  {rank:50, id:'chiliz',     name:'Chiliz',           sym:'CHZ', logo:'🌶', price_usd:0.098,  change24:1.23,  change7d:4.5,   mcap_usd:0.8e9,   vol24_usd:0.06e9, high24:0.100, low24:0.096}
+];
+
+// ===== CRYPTO LIVE =====
+let cryptoLiveData = [];   // CoinGecko'dan gelen canlı veri
+let cryptoList      = [];
+let cryptoSortKey   = 'rank';
+let selectedCrypto  = null;
+let cryptoLoaded    = false;
+
+const FX_SYM = {USD:'$',EUR:'€',TRY:'₺',GBP:'£',JPY:'¥',CHF:'₣',AUD:'A$',CAD:'C$',CNY:'¥',INR:'₹',RUB:'₽',SAR:'﷼',AED:'د.إ',KWD:'د.ك',NOK:'kr',SEK:'kr',DKK:'kr',PLN:'zł',CZK:'Kč',HUF:'Ft',RON:'lei',BRL:'R$',MXN:'$',ZAR:'R',SGD:'S$',HKD:'HK$',KRW:'₩',THB:'฿',MYR:'RM',IDR:'Rp',NZD:'NZ$',QAR:'﷼',ILS:'₪',UAH:'₴',NGN:'₦',EGP:'£',PKR:'₨',BDT:'৳',VND:'₫',PHP:'₱',TWD:'NT$',CLP:'$',COP:'$',ARS:'$',GEL:'₾',AZN:'₼',MAD:'د.م.'};
+
+function getCryptoFx(){
+  const cur = (document.getElementById('cryptoCurrency')?.value || 'USD').toUpperCase();
+  const fx  = rates[cur] || 1;
+  const sym = FX_SYM[cur] || cur + ' ';
+  return {fx, sym, cur};
+}
+
+function populateCryptoCurrencySelect(){
+  const sel = document.getElementById('cryptoCurrency');
+  if(!sel || !Object.keys(rates).length) return;
+  const prev = sel.value || 'USD';
+  sel.innerHTML = Object.keys(rates).sort().map(c => {
+    const flag = (typeof FLAGS !== 'undefined' && FLAGS[c]) ? FLAGS[c]+' ' : '';
+    return `<option value="${c}" ${c===prev?'selected':''}>${flag}${c}</option>`;
+  }).join('');
+}
+
+function fmtPrice(usdPrice){
+  const {fx,sym} = getCryptoFx();
+  const p = usdPrice * fx;
+  if(p >= 1000)   return sym + p.toLocaleString(undefined,{maximumFractionDigits:2});
+  if(p >= 1)      return sym + p.toLocaleString(undefined,{maximumFractionDigits:4});
+  if(p >= 0.0001) return sym + p.toFixed(6);
+  return sym + p.toExponential(3);
+}
+
+function fmtMcap(usdVal){
+  const {fx,sym} = getCryptoFx();
+  const v = usdVal * fx;
+  if(v >= 1e12) return sym+(v/1e12).toFixed(2)+'T';
+  if(v >= 1e9)  return sym+(v/1e9).toFixed(1)+'B';
+  if(v >= 1e6)  return sym+(v/1e6).toFixed(0)+'M';
+  return sym+v.toLocaleString();
+}
+
+// CoinGecko ücretsiz API — canlı top 50
+async function fetchCryptoLive(){
+  const url = 'https://api.coingecko.com/api/v3/coins/markets'
+    + '?vs_currency=usd&order=market_cap_desc&per_page=50&page=1'
+    + '&sparkline=false&price_change_percentage=24h%2C7d';
+  try {
+    const res  = await fetch(url);
+    if(!res.ok) throw new Error('API error');
+    const data = await res.json();
+
+    // CoinGecko verisini kendi formatımıza çevir
+    cryptoLiveData = data.map((c,i) => ({
+      rank:     i+1,
+      id:       c.id,
+      name:     c.name,
+      sym:      c.symbol.toUpperCase(),
+      logo:     c.image,           // URL — img olarak kullanacağız
+      price_usd:c.current_price,
+      change24: c.price_change_percentage_24h || 0,
+      change7d: c.price_change_percentage_7d_in_currency || 0,
+      mcap_usd: c.market_cap || 0,
+      vol24_usd:c.total_volume || 0,
+      high24:   c.high_24h || 0,
+      low24:    c.low_24h  || 0,
+    }));
+
+    cryptoLoaded = true;
+    cryptoList   = [...cryptoLiveData];
+    renderCryptoList();
+    document.getElementById('updateTime').textContent =
+      (I18N[currentLang]?.updated||'Last update:') + ' ' + new Date().toLocaleTimeString();
+  } catch(e) {
+    // API erişilemiyorsa demo veriye düş
+    console.warn('CoinGecko API unavailable, using demo data');
+    cryptoLiveData = CRYPTO_DATA.map(c=>({...c, logo:null}));
+    cryptoList = [...cryptoLiveData];
+    renderCryptoList();
+  }
+}
+
+function sortCrypto(key,btn){
+  cryptoSortKey=key;
+  document.querySelectorAll('.crypto-sort-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCryptoList();
+}
+
+function filterCrypto(q){
+  const src = cryptoLiveData.length ? cryptoLiveData : CRYPTO_DATA;
+  cryptoList = src.filter(c=>
+    c.name.toLowerCase().includes(q.toLowerCase()) ||
+    c.sym.toLowerCase().includes(q.toLowerCase())
+  );
+  renderCryptoList();
+}
+
+function renderCryptoList(){
+  const src = cryptoList.length ? cryptoList : (cryptoLiveData.length ? cryptoLiveData : CRYPTO_DATA);
+  let sorted = [...src];
+  if(cryptoSortKey==='price')  sorted.sort((a,b)=>b.price_usd-a.price_usd);
+  else if(cryptoSortKey==='change') sorted.sort((a,b)=>b.change24-a.change24);
+  else if(cryptoSortKey==='mcap')   sorted.sort((a,b)=>b.mcap_usd-a.mcap_usd);
+  else sorted.sort((a,b)=>a.rank-b.rank);
+
+  document.getElementById('cryptoList').innerHTML = sorted.map(c => {
+    const chgCls = c.change24>=0?'up':'down';
+    const chgPfx = c.change24>=0?'▲':'▼';
+    const logoEl = c.logo
+      ? `<img src="${c.logo}" style="width:28px;height:28px;border-radius:50%" onerror="this.outerHTML='<span style=font-size:18px>${c.sym[0]}</span>'">`
+      : `<span style="font-size:18px">${c.sym[0]}</span>`;
+    return `<div class="crypto-row" onclick="showCryptoDetail('${c.id}')">
+      <div class="crypto-rank">${c.rank}</div>
+      <div class="crypto-logo" style="overflow:hidden">${logoEl}</div>
+      <div class="crypto-info">
+        <div class="crypto-name">${c.name}</div>
+        <div class="crypto-sym">${c.sym} · ${fmtMcap(c.mcap_usd)}</div>
+      </div>
+      <div class="crypto-right">
+        <div class="crypto-price">${fmtPrice(c.price_usd)}</div>
+        <div class="crypto-change ${chgCls}">${chgPfx} ${Math.abs(c.change24).toFixed(2)}%</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Piyasa özeti
+  const allSrc = cryptoLiveData.length ? cryptoLiveData : CRYPTO_DATA;
+  const totalMcap = allSrc.reduce((s,c)=>s+c.mcap_usd,0);
+  const btcMcap   = allSrc.find(c=>c.id==='bitcoin')?.mcap_usd || 0;
+  const ethMcap   = allSrc.find(c=>c.id==='ethereum')?.mcap_usd || 0;
+  const {fx,sym}  = getCryptoFx();
+  document.getElementById('cryptoMarketCap').textContent =
+    `Toplam: ${sym}${((totalMcap*fx)/1e12).toFixed(2)}T`;
+  document.getElementById('cryptoDominance').innerHTML =
+    `BTC ${((btcMcap/totalMcap)*100).toFixed(1)}%<br>ETH ${((ethMcap/totalMcap)*100).toFixed(1)}%`;
+}
+
+function showCryptoDetail(id){
+  const src = cryptoLiveData.length ? cryptoLiveData : CRYPTO_DATA;
+  const c = src.find(x=>x.id===id); if(!c) return;
+  selectedCrypto = c;
+  const logoEl = c.logo
+    ? `<img src="${c.logo}" style="width:40px;height:40px;border-radius:50%" onerror="this.outerHTML='<span style=font-size:24px>${c.sym[0]}</span>'">`
+    : `<span style="font-size:24px">${c.sym[0]}</span>`;
+  document.getElementById('detailLogo').innerHTML = logoEl;
+  document.getElementById('detailName').textContent = c.name;
+  document.getElementById('detailSym').textContent  = c.sym+' · #'+c.rank;
+  document.getElementById('detailPrice').textContent = fmtPrice(c.price_usd);
+  const mk=(v,pos)=>`<span style="color:${pos?'var(--green)':'var(--red)'}">${pos?'▲':'▼'} ${Math.abs(v).toFixed(2)}%</span>`;
+  document.getElementById('detailChange24').innerHTML = mk(c.change24, c.change24>=0);
+  document.getElementById('detailChange7d').innerHTML = mk(c.change7d,  c.change7d>=0);
+  document.getElementById('detailMcap').textContent = fmtMcap(c.mcap_usd);
+  document.getElementById('detailVol').textContent  = fmtMcap(c.vol24_usd);
+  document.getElementById('detailHigh').textContent = fmtPrice(c.high24);
+  document.getElementById('detailLow').textContent  = fmtPrice(c.low24);
+  document.getElementById('cryptoDetail').style.display='block';
+  document.getElementById('cryptoDetail').scrollIntoView({behavior:'smooth',block:'nearest'});
+  setTimeout(()=>drawCryptoDetailChart(c),80);
+}
+
+function closeCryptoDetail(){
+  document.getElementById('cryptoDetail').style.display='none';
+  selectedCrypto=null;
+}
+
+function drawCryptoDetailChart(c){
+  const color = c.change7d>=0?'#10b981':'#ef4444';
+  drawCanvasChart('cryptoDetailChart', c.price_usd*(getCryptoFx().fx), color, 30);
+}
+
+function initCrypto(){
+  populateCryptoCurrencySelect();
+  if(cryptoLoaded){
+    cryptoList = [...cryptoLiveData];
+    renderCryptoList();
+  } else {
+    document.getElementById('cryptoList').innerHTML =
+      '<div style="text-align:center;padding:24px;font-family:JetBrains Mono,monospace;font-size:12px;color:var(--muted2)">⏳ Canlı veriler çekiliyor...</div>';
+    fetchCryptoLive();
+  }
+}
+
+// Her 90 saniyede kripto güncelle (CoinGecko rate limit: 10-30 req/min ücretsiz)
+setInterval(()=>{ if(currentTab==='crypto') fetchCryptoLive(); }, 90000);
+
+// INIT
+fetchRates('USD');
+setInterval(()=>fetchRates(document.getElementById('fromCurrency').value),60000);
+window.addEventListener('resize',()=>{drawChart();if(currentTab==='gold')drawMetalChart('gold');if(currentTab==='silver')drawMetalChart('silver');});
+</script>
+</body>
+</html>
